@@ -1,0 +1,232 @@
+/* dsh-plugin-balance-pet — widget styles, served at /balance-pet/style. */
+
+/* Anchored bottom-left by default; a drag switches it to explicit pixels. */
+.dsh-pet-root {
+  position: fixed;
+  z-index: 2147483000;
+  left: 24px;
+  bottom: 24px;
+  right: auto;
+  top: auto;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  width: clamp(230px, 22vw, 350px);
+  /*
+   * Also a size container: the float effects live under `.dsh-pet-fx`, which is
+   * NOT inside `.dsh-pet-sprite`. Without a container ancestor their `cqw` falls
+   * back to the VIEWPORT width — a 5.5cqw effect rendered ~105px instead of 22px.
+   */
+  container-type: inline-size;
+}
+
+.dsh-pet-sprite {
+  position: relative;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+  line-height: 0;
+  will-change: transform;
+  transform-origin: 50% 100%;
+  /* Size units for the tablet text, so the type scales with her. */
+  container-type: inline-size;
+}
+
+.dsh-pet-sprite.is-drag {
+  cursor: grabbing;
+}
+
+.dsh-pet-sprite img {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+/* Dragging: a light sway, as if lifted by the ring on her head. */
+.dsh-pet-hang {
+  animation: dsh-pet-hang 950ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Left-click release: flat then tall — squashed vertically, wider horizontally. */
+.dsh-pet-squish {
+  animation: dsh-pet-squish 430ms cubic-bezier(0.3, 0.9, 0.3, 1) both;
+}
+
+@keyframes dsh-pet-hang {
+  0% { transform: translateY(0) rotate(0); }
+  22% { transform: translateY(-14px) rotate(-1.6deg); }
+  44% { transform: translateY(2px) rotate(1.4deg); }
+  64% { transform: translateY(-6px) rotate(-0.8deg); }
+  82% { transform: translateY(1px) rotate(0.5deg); }
+  100% { transform: translateY(0) rotate(0); }
+}
+
+@keyframes dsh-pet-squish {
+  0% { transform: scale(1, 1); }
+  30% { transform: scale(1.14, 0.84); }
+  55% { transform: scale(0.95, 1.08); }
+  78% { transform: scale(1.03, 0.96); }
+  100% { transform: scale(1, 1); }
+}
+
+/*
+ * The tablet's glass area, measured from the artwork (tools-edge-profile.cjs):
+ *   the panel's height is a constant 78-79px across every column, so it is a
+ *   clean rotated rectangle (no perspective):
+ *     top edge    -8.83 deg
+ *     bottom edge -9.27 deg
+ *     mean        -9.05 deg   ← the rotation used below
+ *   corners: top-left (393,249)  top-right (518,230)
+ *            bottom-left (393,327) bottom-right (518,307)
+ *   → panel 126 x 78 px along its own frame, centre (455.5, 278.3)
+ *   → left 70.0%, top 64.1%, width 22.6%, height 20.9%
+ *
+ * The text is rotated to that same angle so it sits parallel to the tablet's
+ * top and bottom borders. `.dsh-pet-sprite` is an inline-size container, so
+ * every font size below is in cqw (1% of her width) and scales with her.
+ *
+ * Three lines: price-window name, balance figure, clock.
+ */
+.dsh-pet-screen {
+  position: absolute;
+  left: 70.0%;
+  top: 64.1%;
+  width: 22.6%;
+  height: 20.9%;
+  transform: rotate(-9.05deg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* cqw, not em: `em` here would resolve against the container's inherited
+     font-size (~16px), not the money size, giving a near-zero gap. */
+  gap: 0.88cqw;
+  overflow: hidden;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 梁文峰 / 梁文谷 — the price window, top slot.
+   Colour is set by the client: 谷价 green, 峰价 blue. */
+.dsh-pet-name {
+  font-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  font-size: 2.9cqw;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* The figure — the one thing that must read at a glance. */
+.dsh-pet-money {
+  font-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  font-size: 5.5cqw;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+/* Beijing time, bottom slot. */
+.dsh-pet-clock {
+  font-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  font-size: 2.55cqw;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  white-space: nowrap;
+  color: #9ad7ff;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Failure text lands in the same slot as the tablet content, at the same angle. */
+.dsh-pet-err {
+  position: absolute;
+  left: 70.0%;
+  top: 64.1%;
+  width: 22.6%;
+  height: 20.9%;
+  transform: rotate(-9.05deg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.0cqw;
+  color: #ff9c9c;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.2;
+  padding: 2px;
+}
+
+/* On-widget diagnostic: a stuck snapshot fetch says so instead of staying silent.
+   Sits under the whole figure so it never covers her or the tablet. */
+.dsh-pet-diag {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  width: 100%;
+  margin-top: 4px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 2.6cqw;
+  line-height: 1.25;
+  color: #ffd166;
+  background: rgba(0, 0, 0, 0.72);
+  border-radius: 6px;
+  padding: 3px 5px;
+  text-align: center;
+  word-break: break-all;
+}
+
+/* Effects float above her head. */
+.dsh-pet-fx {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  width: 100%;
+  height: 130px;
+  pointer-events: none;
+}
+
+.dsh-pet-float {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  white-space: nowrap;
+}
+
+/* Both sizes reproduce the earlier viewport-based look at the widget's default
+   350px width (dollar 22px, heart 34px), but now scale with her instead of the
+   viewport. */
+.dsh-pet-float.dollar {
+  color: #ff7b7b;
+  font-size: 6.3cqw;
+  font-weight: 800;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65);
+  animation: dsh-pet-up 1900ms ease-out forwards;
+}
+
+.dsh-pet-float.heart {
+  color: #ff5f8a;
+  font-size: 9.7cqw;
+  animation: dsh-pet-heart 2100ms ease-out forwards;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes dsh-pet-up {
+  0% { opacity: 0; transform: translate(-50%, 10px) scale(0.7); }
+  18% { opacity: 1; transform: translate(-50%, -6px) scale(1.12); }
+  32% { transform: translate(-50%, -14px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -64px) scale(1); }
+}
+
+@keyframes dsh-pet-heart {
+  0% { opacity: 0; transform: translate(-50%, 4px) scale(0.4); }
+  20% { opacity: 1; transform: translate(-50%, -12px) scale(1.25); }
+  40% { transform: translate(-50%, -24px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -96px) scale(1.1); }
+}
