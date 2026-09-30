@@ -1,0 +1,43 @@
+{
+  "name": "dsh-plugin-balance-pet",
+  "version": "1.0.0",
+  "description": "DeepSeek 余额看板娘：浮层角色手持平板显示余额与北京时间，峰价梁文峰、谷价梁文谷，扣款飘金额、到账冒爱心",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "files": [
+    "lib",
+    "assets",
+    "cordis.patch.yml",
+    "README.md",
+    "TUNING.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "plugin",
+    "balance",
+    "desktop-pet"
+  ],
+  "devDependencies": {
+    "sharp": "^0.35.4"
+  },
+  "license": "MIT"
+}
