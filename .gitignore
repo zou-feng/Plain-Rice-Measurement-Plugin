@@ -1,0 +1,8 @@
+# Dependencies installed only for the dev tools in this folder
+# (tools-*.cjs need `sharp`). The plugin itself has no runtime dependencies.
+node_modules/
+
+# Tool output
+*.tgz
+npm-debug.log*
+pnpm-debug.log*
