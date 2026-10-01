@@ -40,10 +40,10 @@ D:\dsh-plugins\dsh-plugin-balance-pet\
 ### B. 拷贝打包好的 tarball
 
 ```
-dsh-plugin-balance-pet-1.0.0.tgz          ← 单文件,约 106KB
+dsh-plugin-balance-pet-1.1.0.tgz          ← 单文件,约 109KB
 ```
 
-随便放哪都行,例如 `D:\dsh-plugin-balance-pet-1.0.0.tgz`。
+随便放哪都行,例如 `D:\dsh-plugin-balance-pet-1.1.0.tgz`。
 
 ---
 
@@ -81,7 +81,7 @@ dsh plugin --profile web add "<插件文件夹或 .tgz 的绝对路径>"
 ```powershell
 dsh plugin --profile web add "D:\dsh-plugins\dsh-plugin-balance-pet"
 # 或者
-dsh plugin --profile web add "D:\dsh-plugin-balance-pet-1.0.0.tgz"
+dsh plugin --profile web add "D:\dsh-plugin-balance-pet-1.1.0.tgz"
 ```
 
 **它自动做了三件事**(不需要你手改任何文件):

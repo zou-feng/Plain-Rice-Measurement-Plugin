@@ -63,6 +63,7 @@ dsh-plugin-balance-pet/
 ├── tools-render-preview.cjs 把文字合成到底图出预览（开发用）
 ├── tools-verify-from-css.cjs 从 style.css 反读数值，算旋转后是否在平板内
 ├── INSTALL.md              详细安装教程（换一台电脑装的话看这个）
+├── CHANGELOG.md            更新日志（语义化版本）
 └── TUNING.md               调参手册：角度/位置/字号/刷新速度改哪里
 ```
 
@@ -213,3 +214,5 @@ node <dsh>/lib/bin.js web --port 3105 --no-open
 ## 许可
 
 MIT —— 见 [LICENSE](./LICENSE)。
+
+变更历史见 [CHANGELOG.md](./CHANGELOG.md)。
