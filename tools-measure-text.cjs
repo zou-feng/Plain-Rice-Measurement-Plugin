@@ -16,7 +16,12 @@ const tilt = Number(/rotate\((-?[\d.]+)deg\)/.exec(screen)[1])
 
 const nameCqw = Number(/\.dsh-pet-name\s*\{[^}]*font-size:\s*([\d.]+)cqw/s.exec(css)[1])
 const moneyCqw = Number(/\.dsh-pet-money\s*\{[^}]*font-size:\s*([\d.]+)cqw/s.exec(css)[1])
-const clockCqw = Number(/\.dsh-pet-clock\s*\{[^}]*font-size:\s*([\d.]+)cqw/s.exec(css)[1])
+const countCqw = Number(/\.dsh-pet-count\s*\{[^}]*font-size:\s*([\d.]+)cqw/s.exec(css)[1])
+const stackGapCqw = Number(/\.dsh-pet-screen\s*\{[^}]*gap:\s*([\d.]+)cqw/s.exec(css)[1])
+const stackGapTopCqw = (() => {
+  const m = /\.dsh-pet-screen\s*\{[^}]*padding-top:\s*([\d.]+)cqw/s.exec(css)
+  return m === null ? 0 : Number(m[1])
+})()
 
 /** Pull the first concrete family out of a rule's font-family list. */
 function familyOf(rule) {
@@ -29,15 +34,15 @@ function familyOf(rule) {
 }
 const nameFamily = familyOf('name')
 const moneyFamily = familyOf('money')
-const clockFamily = familyOf('clock')
+const countFamily = familyOf('count')
 
 const ART_W = 560
+const ART_H = 373
 const cqw = (n) => (n / 100) * ART_W
-const ns = cqw(nameCqw), ms = cqw(moneyCqw), cs = cqw(clockCqw)
+const ns = cqw(nameCqw), ms = cqw(moneyCqw), cs = cqw(countCqw)
 
 // Measured glass (clean rotated rectangle).
 const G = { cx: 455.5, cy: 278.3, w: 126.4, h: 78 }
-const GAP_FACTOR = 0.16
 
 async function inkBox(text, fontSize, family, weight) {
   const pad = 40
@@ -60,32 +65,45 @@ async function inkBox(text, fontSize, family, weight) {
 async function main() {
   const moneyText = '¥ 23.21'
   const nameText = '梁文谷'
-  const clockText = '02:19:34'
+  // The countdown's longest form: a holiday block's hours:minutes:seconds.
+  const countText = '246:31:07'
 
   // Families come straight out of style.css, so the measurement reflects the
   // fonts actually configured rather than a hard-coded guess.
   const mBox = await inkBox(moneyText, ms, moneyFamily, 700)
   const nBox = await inkBox(nameText, ns, nameFamily, 700)
-  const cBox = await inkBox(clockText, cs, clockFamily, 600)
+  const cBox = await inkBox(countText, cs, countFamily, 600)
 
   console.log('MEASURED INK (real rasterisation, not an estimate):')
-  console.log(`  families: name="${nameFamily}"  money="${moneyFamily}"  clock="${clockFamily}"`)
+  console.log(`  families: name="${nameFamily}"  money="${moneyFamily}"  count="${countFamily}"`)
   console.log(`  name   "${nameText}" @ ${ns.toFixed(1)}px -> ${nBox.w} x ${nBox.h} px`)
   console.log(`  money  "${moneyText}" @ ${ms.toFixed(1)}px -> ${mBox.w} x ${mBox.h} px`)
-  console.log(`  clock  "${clockText}" @ ${cs.toFixed(1)}px -> ${cBox.w} x ${cBox.h} px`)
+  console.log(`  count  "${countText}" @ ${cs.toFixed(1)}px -> ${cBox.w} x ${cBox.h} px`)
 
   const textW = Math.max(nBox.w, mBox.w, cBox.w)
-  const gap = ms * GAP_FACTOR
-  const textH = nBox.h + gap + mBox.h + gap + cBox.h
+  /*
+   * The stack height is the three LINE BOXES, not the ink: `line-height: 1` makes
+   * each line box exactly its font-size tall. Using ink height here understated
+   * the stack and made the fit look roomier than it was.
+   */
+  const gap = cqw(stackGapCqw)
+  const textH = ns + gap + ms + gap + cs
+  const inkH = nBox.h + gap + mBox.h + gap + cBox.h
   console.log('')
-  console.log(`  block  : ${textW} x ${textH.toFixed(1)} px   (widest line x stacked height)`)
+  console.log(`  stack  : ${textW} x ${textH.toFixed(1)} px   (widest line x line-box height)`)
+  console.log(`  ink    : ${inkH.toFixed(1)} px tall  (for reference; glyph ink, not the layout box)`)
 
   // Containment after rotation, expressed in the glass's own frame.
+  //
+  // `.dsh-pet-screen` is top-anchored, so the block is not centred in the glass
+  // box — the same `padding-top` offset the CSS uses has to be applied here.
   const rad = tilt * Math.PI / 180
   const boxW = (widthPct / 100) * ART_W
-  const boxH = (heightPct / 100) * 373
+  const boxH = (heightPct / 100) * ART_H
+  const boxTop = (top / 100) * ART_H
+  const topAnchored = /\.dsh-pet-screen\s*\{[^}]*justify-content:\s*flex-start/s.test(css)
   const tcx = (left / 100) * ART_W + boxW / 2
-  const tcy = (top / 100) * 373 + boxH / 2
+  const tcy = topAnchored ? boxTop + cqw(stackGapTopCqw) + textH / 2 : boxTop + boxH / 2
   const corners = [[-textW / 2, -textH / 2], [textW / 2, -textH / 2], [textW / 2, textH / 2], [-textW / 2, textH / 2]]
   let worst = Infinity, side = ''
   for (const [x, y] of corners) {

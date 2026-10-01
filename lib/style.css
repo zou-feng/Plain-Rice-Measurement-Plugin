@@ -44,30 +44,29 @@
   -webkit-user-drag: none;
 }
 
-/* Dragging: a light sway, as if lifted by the ring on her head. */
-.dsh-pet-hang {
-  animation: dsh-pet-hang 950ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
+/*
+ * Dragging has NO animation of its own — she simply follows the pointer, and
+ * the only thing that changes is the cursor (`.is-drag`).
+ *
+ * There is deliberately no sway/tilt here. Two earlier attempts both read as a
+ * "jump": one swung through translateY(-14px), and the rotation-only replacement
+ * still swung her head sideways. Plain movement is what a drag is.
+ */
 
-/* Left-click release: flat then tall — squashed vertically, wider horizontally. */
+/*
+ * Left-click release: squash only. Every keyframe keeps scale-y <= 1, so she is
+ * never taller than her resting size — an earlier version overshot to 1.08 and
+ * the upward pop read as a "jump". Width still bulges out as she compresses.
+ */
 .dsh-pet-squish {
-  animation: dsh-pet-squish 430ms cubic-bezier(0.3, 0.9, 0.3, 1) both;
-}
-
-@keyframes dsh-pet-hang {
-  0% { transform: translateY(0) rotate(0); }
-  22% { transform: translateY(-14px) rotate(-1.6deg); }
-  44% { transform: translateY(2px) rotate(1.4deg); }
-  64% { transform: translateY(-6px) rotate(-0.8deg); }
-  82% { transform: translateY(1px) rotate(0.5deg); }
-  100% { transform: translateY(0) rotate(0); }
+  animation: dsh-pet-squish 420ms cubic-bezier(0.3, 0.9, 0.3, 1) both;
 }
 
 @keyframes dsh-pet-squish {
   0% { transform: scale(1, 1); }
-  30% { transform: scale(1.14, 0.84); }
-  55% { transform: scale(0.95, 1.08); }
-  78% { transform: scale(1.03, 0.96); }
+  26% { transform: scale(1.13, 0.85); }
+  52% { transform: scale(1.05, 0.95); }
+  78% { transform: scale(1.015, 0.985); }
   100% { transform: scale(1, 1); }
 }
 
@@ -99,7 +98,18 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /*
+   * Top-anchored, not centred: the name sits in the upper part of the tablet
+   * with the larger share of the slack left at the bottom. `padding-top` is the
+   * gap between the glass's top edge and the name's line box, and it is the ONE
+   * knob for "move the whole block up/down" — the three lines keep their order.
+   *
+   * 0.5cqw ≈ 2.8px on the 560px artwork (≈1.75px at the default widget width).
+   * The whole stack is 71.2px in a 78px glass, so the two gaps can only add up
+   * to 6.8px: raising this pushes the countdown towards the lower border.
+   */
+  justify-content: flex-start;
+  padding-top: 0.5cqw;
   /* cqw, not em: `em` here would resolve against the container's inherited
      font-size (~16px), not the money size, giving a near-zero gap. */
   gap: 0.88cqw;
@@ -131,8 +141,19 @@
   white-space: nowrap;
 }
 
-/* Beijing time, bottom slot. */
-.dsh-pet-clock {
+/*
+ * Countdown to the next peak/valley switch, bottom slot — hours:minutes:seconds.
+ *
+ * Hours are not wrapped at 24, so the longest form is a holiday block's
+ * `246:31:07` (9 characters). At 2.55cqw that is ~69px, comfortably inside the
+ * ~126px glass.
+ *
+ * The COLOUR is not fixed here. The client tints this line by the window it is
+ * counting DOWN TO — the INVERSE of the name above it: a green countdown means
+ * valley is coming, a blue one means peak is coming. What is declared below is
+ * only the fallback for the `--:--:--` placeholder before the first snapshot.
+ */
+.dsh-pet-count {
   font-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif;
   font-size: 2.55cqw;
   font-weight: 600;

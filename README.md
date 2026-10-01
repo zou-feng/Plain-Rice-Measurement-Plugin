@@ -6,12 +6,21 @@ DeepSeek 余额看板娘 —— 一个可独立安装的 **DSH 网页端插件**
 
 ```
 梁文谷 / 梁文峰      ← 当前价段称呼（谷价绿、峰价蓝）
-¥ 23.21             ← 剩余余额
-02:19:34            ← 北京时间（恒为蓝色）
+¥ 23.21             ← 剩余余额（恒白）
+158:47:24           ← 倒计时，染的是「它数向的那个价段」：指向谷=绿，指向峰=蓝
 ```
 
-- 谷价时段：北京时间 **00:30–08:30**（官方错峰优惠口径），其余为峰价
-- **左键按住可拖动**（拖动时她轻轻晃，松手落定）
+颜色规则：**名字**跟着当前价段（谷绿/峰蓝），**倒计时**跟着它数向的价段 ——
+也就是和名字**正好相反**（现在谷价，倒计时就是蓝的，因为它在等峰价）。
+
+- **峰谷不是只看钟点**，按 DeepSeek 官方口径：
+  - 日常：北京时间 **00:30–08:30** 为空闲（谷价）时段，其余为峰价；
+  - **周六、周日全天**按谷价（含调休上班的周末）；
+  - **中国法定节假日**放假期间全天按谷价（整段假期，见 `lib/index.js` 里的年份表）。
+- 第三行是**距离下一次峰谷切换的倒计时**，`小时:分钟:秒`；**小时不进位成天**，
+  所以国庆连休会显示 `158:47:24`。它用的是 Host 的绝对时刻 + `serverTime` 校正，
+  改系统时间骗不到它，后台标签页回到前台也是直接跳对，不是慢慢追。
+- **左键按住可拖动**（就是单纯跟着鼠标走，没有任何动效）
 - **左键点一下**：上下压扁、左右变宽的橡皮回弹（不是跳起来）
 - **扣款**（余额减少）：头顶飘出红色 `-¥0.30`
 - **到账**（余额增加）：头顶冒粉色 `❤`
@@ -43,13 +52,17 @@ dsh-plugin-balance-pet/
 ├── cordis.patch.yml        本插件的 bundle patch：一行加载器条目
 ├── assets/sprite.png       看板娘底图（560×373，RGBA 透明底）
 ├── lib/
-│   ├── index.js            Host 半：凭据解析、余额查询、时钟/价段、四条静态路由
+│   ├── index.js            Host 半：凭据解析、余额查询、峰谷规则与节假日表、四条静态路由
 │   ├── client.js           浏览器半：手写 bundle（无需构建）
 │   └── style.css           样式表
+├── tools-test-schedule.cjs 峰谷规则的离线单测（21 个已知时刻 + 4000 次模糊测试）
+├── tools-audit.cjs         静态自查：把踩过的坑逐条钉成断言
 ├── tools-edge-profile.cjs  量平板上下边框角度（开发用）
+├── tools-measure-panel.cjs 量平板玻璃区域（开发用）
 ├── tools-measure-text.cjs  光栅化量文字真实宽度（开发用）
 ├── tools-render-preview.cjs 把文字合成到底图出预览（开发用）
 ├── tools-verify-from-css.cjs 从 style.css 反读数值，算旋转后是否在平板内
+├── INSTALL.md              详细安装教程（换一台电脑装的话看这个）
 └── TUNING.md               调参手册：角度/位置/字号/刷新速度改哪里
 ```
 
@@ -57,8 +70,8 @@ dsh-plugin-balance-pet/
 
 | 路由 | 说明 |
 | --- | --- |
-| `GET /balance-pet/status` | 余额 + 北京时间 + 价段（页面轮询这个） |
-| `GET /balance-pet/config` | 资产版本号、谷价窗口（**不含任何凭据**） |
+| `GET /balance-pet/status` | 余额 + 价段 + 下次切换时刻（页面轮询这个） |
+| `GET /balance-pet/config` | 资产版本号、谷价窗口、全年全天谷价日期表（**不含任何凭据**） |
 | `GET /balance-pet/sprite` | 看板娘底图（image/png，`no-cache` + ETag） |
 | `GET /balance-pet/style` | 样式表（text/css，`no-cache` + ETag） |
 
@@ -66,15 +79,22 @@ dsh-plugin-balance-pet/
 
 ```json
 {
-  "hour": 2, "minute": 19, "minutes": 139,
+  "serverTime": 1790817155848,
   "valley": true, "label": "梁文谷",
   "window": { "fromMinute": 30, "untilMinute": 510 },
+  "nextSwitchAt": 1791388800000,
   "ok": true, "balance": 23.21, "currency": "CNY",
   "message": null, "ageMs": 1200
 }
 ```
 
+`nextSwitchAt` 是**绝对时间戳**，页面用它减去 `serverTime` 得到倒计时，
+再按 `serverTime - Date.now()` 修正本机时钟偏差。
+
 ## 安装
+
+> 换一台电脑装、或者要图文逐步的教程，看 **[INSTALL.md](./INSTALL.md)**（含故障排查表）。
+> 下面是速查版。
 
 ### 方式 A：一条命令（推荐）
 
@@ -157,6 +177,11 @@ node --check lib/client.js
 
 # 开发工具需要 sharp（仅开发用，插件运行时零依赖）
 npm i -D sharp
+
+# 峰谷规则的单测（21 个已知时刻 + 4000 次模糊测试）
+node tools-test-schedule.cjs
+# 静态自查：把踩过的坑逐条钉成断言
+node tools-audit.cjs
 
 # 量平板边框角度 / 文字真实宽度 / 出预览图 / 校验是否超框
 node tools-edge-profile.cjs

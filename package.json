@@ -27,7 +27,8 @@
     "cordis.patch.yml",
     "README.md",
     "TUNING.md",
-    "LICENSE"
+    "LICENSE",
+    "INSTALL.md"
   ],
   "keywords": [
     "dsh",
