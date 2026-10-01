@@ -28,6 +28,24 @@ DeepSeek 余额看板娘 —— 一个可独立安装的 **DSH 网页端插件**
 - 余额约每 **3–5 秒**刷新一次；失败时平板显示原因，已拿到的数值保留
 - 客户端任何异常都被 try/catch 拦住，只写 `console.error`，**不会**拖垮页面启动
 
+## 版本与下载
+
+当前版本 **1.1.0**（`assetVersion 28`）。每次改了什么见 [CHANGELOG.md](./CHANGELOG.md)。
+
+| 分支 / 标签 | 内容 | 怎么拿到 |
+| --- | --- | --- |
+| `main` | 最新代码（当前 = 1.1.0） | 打开仓库就是它 |
+| `version/1.1.0` | 1.1.0 的冻结快照 | 分支下拉切过去 → **Code → Download ZIP** |
+| `version/1.0.0` | 1.0.0（第三行是北京时间、峰谷只按钟点、拖动有摆动） | 同上 |
+| 标签 `v1.1.0` / `v1.0.0` | 同上面两个点 | **Releases** 页 |
+
+打包好的插件包在 **[Releases](https://github.com/zou-feng/Plain-Rice-Measurement-Plugin/releases)**：
+`v1.1.0` 附了 `dsh-plugin-balance-pet-1.1.0.tgz`，下载后直接
+`dsh plugin --profile web add <那个 tgz>` 即可。
+
+> `main` 会继续往前走，**已发布的版本固定在标签上**，所以 `main` 和 `version/1.1.0`
+> 不一定永远相等 —— 想要「和 1.1.0 发布时一模一样」的那份，就用分支或标签。
+
 ## 设计要点：余额在 Host 侧查询
 
 ```
