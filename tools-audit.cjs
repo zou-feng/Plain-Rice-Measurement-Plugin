@@ -191,6 +191,64 @@ check('the name clears the upper border', gapAboveName >= 1.8, `${gapAboveName.t
 check('the name stays in the upper part', gapAboveName <= 4, `${gapAboveName.toFixed(2)}px`)
 check('the whole stack still clears the glass bottom', gapAboveName + stack <= 78, `${(gapAboveName + stack).toFixed(1)}px`)
 
+console.log('--- 扣款挨打反馈 ---')
+/*
+ * A deduction shakes her and flashes her red, Minecraft-style. The red is a
+ * SECOND copy of the sprite run through an SVG feColorMatrix: a plain
+ * `sepia -> saturate -> hue-rotate` chain was tried first and could not reach
+ * the reference colour (mid-tones have to saturate to about (204,0,0)).
+ */
+check('a deduction triggers the hurt effect', /pushFloat\('dollar'[\s\S]{0,140}playHurt\(\)/.test(client))
+check('the red layer reuses the same sprite', /el\('img', 'dsh-pet-hurt'\)[\s\S]{0,200}versionedUrl\(SPRITE_URL\)/.test(client))
+check('the red layer sits UNDER the tablet (text stays readable)', client.indexOf('sprite.appendChild(hurt)') < client.indexOf('sprite.appendChild(screen)'))
+check('the tint is an inline SVG colour matrix', /createElementNS\(svgNs, 'feColorMatrix'\)/.test(client) && /setAttribute\('values', HURT_MATRIX\)/.test(client))
+check('the filter forces sRGB (SVG defaults to linearRGB)', /color-interpolation-filters', 'sRGB'/.test(client))
+check('the filter is not inside a display:none subtree', !/dsh-pet-svgdefs[\s\S]{0,80}display:\s*none/.test(css))
+check('the shake runs on the ROOT, not the sprite', /\.dsh-pet-root\.is-hurt\s*\{[^}]*dsh-pet-shake/s.test(css))
+check('the shake never scales (the sprite owns transform)', !/@keyframes dsh-pet-shake\s*\{[\s\S]*?\n\}/.test(css) || !/scale\(/.test(/@keyframes dsh-pet-shake\s*\{([\s\S]*?)\n\}/.exec(css)[1]))
+check('the flash is stepped, not a smooth fade', /animation:\s*dsh-pet-flash\s+\d+ms\s+steps\(/.test(css))
+check('the hurt class is cleared on animationend', /animationName === 'dsh-pet-shake'[\s\S]{0,80}classList\.remove\('is-hurt'\)/.test(client))
+
+console.log('--- 右键菜单 ---')
+check('right-click opens the menu and suppresses the native one', /addEventListener\('contextmenu', onContextMenu\)/.test(client) && /event\.preventDefault\(\)\s*\n\s*openMenu/.test(client))
+check('the menu offers 立即刷新', /立即刷新余额/.test(client))
+check('the menu offers five sizes', /MENU_SIZES = \[/.test(client) && (client.match(/\{ id: '(auto|small|medium|large|huge)'/g) || []).length === 5)
+/*
+ * Every id in MENU_SIZES must also be accepted by the stored-value whitelist,
+ * or the choice silently fails to persist. This is checked structurally rather
+ * than by listing the ids twice: a hand-written list is exactly what broke when
+ * `huge` was added.
+ */
+const menuIds = (client.match(/\{ id: '([a-z]+)', label: '[^']+', width: (?:null|\d+) \}/g) || []).map(
+  (row) => /id: '([a-z]+)'/.exec(row)[1],
+)
+check('the size list is parsed', menuIds.length === 5, menuIds.join(','))
+check(
+  'every offered size survives the storage whitelist',
+  menuIds.length > 0 && menuIds.every((id) => new RegExp(`saved\\.size === '${id}'|MENU_SIZES\\[i\\]\\.id === saved\\.size`).test(client)),
+  menuIds.join(','),
+)
+check('the storage whitelist is driven by MENU_SIZES, not a copy', /MENU_SIZES\[i\]\.id === saved\.size/.test(client))
+check(
+  'sizes ascend',
+  (() => {
+    const widths = (client.match(/width: (\d+)/g) || []).map((s) => Number(/\d+/.exec(s)[0]))
+    return widths.length === 4 && widths.every((w, i) => i === 0 || w > widths[i - 1])
+  })(),
+  (client.match(/width: (\d+)/g) || []).join(' '),
+)
+check('the menu toggles 显示 / 隐藏', /prefs\.hidden \? '显示看板娘' : '隐藏看板娘'/.test(client))
+check('hiding leaves a way back', /el\('button', 'dsh-pet-restore'/.test(client) && /\.dsh-pet-root:not\(\.is-hidden\) \.dsh-pet-restore/.test(css))
+check('the choices persist', /localStorage\.setItem\(PREF_KEY/.test(client))
+check('the menu closes on outside click, Escape and resize', /'pointerdown', menuListeners\.onDown/.test(client) && /Escape/.test(client) && /addEventListener\('resize', menuListeners\.onLeave\)/.test(client))
+check('menu listeners are removed again', /removeEventListener\('pointerdown', menuListeners\.onDown/.test(client))
+check('dispose closes the menu', /closeMenu\(\)[\s\S]{0,120}removeEventListener\('resize', onResize\)/.test(client))
+check('the menu is dark and rounded', /\.dsh-pet-menu\s*\{[\s\S]{0,500}rgba\(26, 28, 34/.test(css) && /border-radius:\s*8px/.test(css))
+check('the menu takes pointer events back', /\.dsh-pet-menu\s*\{[\s\S]{0,700}pointer-events:\s*auto/.test(css))
+check('the menu clamps itself into the window', /window\.innerWidth - margin - width/.test(client) && /window\.innerHeight - margin - height/.test(client))
+check('"refresh now" asks the Host to bypass its cache', /x-balance-pet-force/.test(client) && /x-balance-pet-force/.test(host))
+check('the Host waits for the forced query before answering', /refresh\(true\)\.then\(answer, answer\)/.test(host))
+
 console.log('')
 console.log(failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED')
 process.exit(failures === 0 ? 0 : 1)

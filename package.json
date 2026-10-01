@@ -1,7 +1,7 @@
 {
   "name": "dsh-plugin-balance-pet",
-  "version": "1.1.0",
-  "description": "DeepSeek 余额看板娘：浮层角色手持平板显示余额、峰谷价段与下次切换倒计时，峰价梁文峰、谷价梁文谷，扣款飘金额、到账冒爱心",
+  "version": "1.2.0",
+  "description": "DeepSeek 余额看板娘：浮层角色手持平板显示余额、峰谷价段与下次切换倒计时，峰价梁文峰、谷价梁文谷，扣款发抖闪红、到账冒爱心，右键可调尺寸与显隐",
   "type": "module",
   "main": "lib/index.js",
   "exports": {

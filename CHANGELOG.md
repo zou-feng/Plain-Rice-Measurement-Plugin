@@ -4,6 +4,36 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.2.0] - 2026-10-01
+
+### 新增
+
+- **扣款时「挨打」反馈**：余额减少时她**整体发抖 + 全身闪红**，抄的是 Minecraft
+  里打怪那一下。
+  - 红色不是盖一层纯色块，而是同一张立绘经 **SVG `feColorMatrix`** 变换：
+    `R = 3.2 × 灰度`、`G = B = 0.4 × 灰度`。这个增益是**量出来的** —— 对参考实现
+    采样发现中间调的蓝像素输出约 `(204,0,0)`，即红通道要被推到饱和，而另外两个
+    通道压低以保持总亮度。CSS 自带的 `sepia → saturate → hue-rotate` 到不了这个
+    色（试过，只会偏橙或偏粉），所以用矩阵写死，并强制 `sRGB`
+    （SVG 滤镜默认 `linearRGB`，不声明会得到另一种颜色）。
+  - 抖动挂在**根元素**上而不是 `.dsh-pet-sprite`：后者的 `transform` 归点击压缩用，
+    两个动画抢同一个属性会互相抵消。
+  - 闪红用 `steps(1)` 硬切而不是平滑淡入 —— Minecraft 的受伤闪烁就是几帧硬切。
+  - 红色层排在**平板文字之下**，所以闪红不会把屏幕上的数字糊掉。
+- **右键菜单**（深色）：
+  - `立即刷新余额` —— 带 `x-balance-pet-force: 1` 请求 Host，**绕过 Host 那几秒缓存**
+    当场重查。实测：普通请求 `ageMs=6393`，带该头 `ageMs=1`。用请求头而不是查询
+    参数，因为这条路由是按路径精确匹配注册的。
+  - `尺寸` —— 自动（跟随窗口的 `clamp()`）/ 小 230px / 中 290px / 大 350px /
+    **超大 460px**，并且会按 `window.innerWidth - 48` 再夹一次，所以「超大」在窄
+    窗口里自动缩小而不是探出屏幕。
+  - `隐藏看板娘` / `显示看板娘` —— 隐藏后在左下角留一个圆形还原按钮，所以这个选择
+    **永远可逆**，不用去改配置文件。
+  - 尺寸与显示状态存 `localStorage`（`dsh-balance-pet:prefs`），刷新页面后保持；
+    存储被禁用或内容损坏时静默降级为「不记忆」，绝不抛错。
+  - 菜单会把自身夹在窗口内；点外面 / `Esc` / 缩放窗口都会关掉，监听器在关闭和
+    插件卸载时都会摘掉。
+
 ## [1.1.0] - 2026-10-01
 
 ### 新增
@@ -59,5 +89,6 @@
 - 左键拖动、左键点击压缩回弹、扣款飘 `-¥X.XX`、到账冒 `❤`。
 - 四条静态路由：`/balance-pet/{status,config,sprite,style}`。
 
+[1.2.0]: https://github.com/zou-feng/Plain-Rice-Measurement-Plugin/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/zou-feng/Plain-Rice-Measurement-Plugin/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/zou-feng/Plain-Rice-Measurement-Plugin/releases/tag/v1.0.0

@@ -45,6 +45,157 @@
 }
 
 /*
+ * ── 扣款时的「挨打」反馈 ──────────────────────────────────────────────────
+ * 整体发抖 + 全身闪红，抄 Minecraft 里打怪的那一下。
+ *
+ * 红色层是同一张立绘的副本，经 SVG feColorMatrix 变成「她的明暗度数，灌进一个
+ * 会饱和到纯红的红色通道」——对参考实现采样发现中间调的蓝像素会输出 (204,0,0)，
+ * 也就是红通道增益约 3.2、另外两个约 0.4（这样总亮度基本不变）。CSS 自带的
+ * sepia→saturate→hue-rotate 到不了这个色，所以用矩阵精确写死。
+ *
+ * 它排在平板内容之前，所以闪红不会糊掉屏幕上的数字。
+ */
+.dsh-pet-svgdefs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.dsh-pet-sprite .dsh-pet-hurt {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: auto;
+  opacity: 0;
+  filter: url(#dsh-pet-hurt-red);
+}
+
+/*
+ * 抖动挂在根元素上，**不能挂在 .dsh-pet-sprite 上** —— 那个元素的 transform
+ * 归点击压缩用，两个动画抢同一个属性会互相抵消。
+ * 幅度用 px 而不是 cqw：根元素自己就是 size container，容器单位在它自身上会
+ * 退回视口宽度（这个坑之前踩过）。230~350px 的挂件宽度下 2~3px 的抖动刚好。
+ */
+.dsh-pet-root.is-hurt {
+  animation: dsh-pet-shake 460ms linear both;
+}
+
+.dsh-pet-root.is-hurt .dsh-pet-hurt {
+  animation: dsh-pet-flash 460ms steps(1, end) both;
+}
+
+@keyframes dsh-pet-shake {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  12% { transform: translate(-3px, 1px) rotate(-0.35deg); }
+  25% { transform: translate(2.5px, -1.5px) rotate(0.3deg); }
+  38% { transform: translate(-2px, -1px) rotate(0.25deg); }
+  50% { transform: translate(2px, 1.5px) rotate(-0.3deg); }
+  62% { transform: translate(-1.5px, 1px) rotate(0.2deg); }
+  75% { transform: translate(1px, -0.5px) rotate(-0.15deg); }
+  88% { transform: translate(-0.5px, 0.5px) rotate(0.1deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+/* 闪红用 steps(1)：Minecraft 的受伤闪烁是几帧硬切，不是平滑淡入淡出。 */
+@keyframes dsh-pet-flash {
+  0% { opacity: 0; }
+  10% { opacity: 0.85; }
+  35% { opacity: 0.15; }
+  55% { opacity: 0.8; }
+  80% { opacity: 0.2; }
+  100% { opacity: 0; }
+}
+
+/* ── 右键菜单 ──────────────────────────────────────────────────────────── */
+
+.dsh-pet-menu {
+  position: absolute;
+  z-index: 10;
+  min-width: 152px;
+  padding: 4px;
+  border-radius: 8px;
+  background: rgba(26, 28, 34, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  color: #e6e8ee;
+  font-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: left;
+  pointer-events: auto;
+  backdrop-filter: blur(6px);
+}
+
+.dsh-pet-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dsh-pet-menu-row:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dsh-pet-menu-row.is-active {
+  color: #9ad7ff;
+}
+
+.dsh-pet-menu-tick {
+  margin-left: auto;
+  opacity: 0.9;
+}
+
+.dsh-pet-menu-title {
+  padding: 5px 9px 2px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  opacity: 0.5;
+}
+
+.dsh-pet-menu-sep {
+  height: 1px;
+  margin: 4px 3px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ── 隐藏之后留的还原按钮 ──────────────────────────────────────────────── */
+
+.dsh-pet-root:not(.is-hidden) .dsh-pet-restore {
+  display: none;
+}
+
+.dsh-pet-root.is-hidden .dsh-pet-sprite,
+.dsh-pet-root.is-hidden .dsh-pet-fx {
+  display: none;
+}
+
+.dsh-pet-restore {
+  display: block;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(26, 28, 34, 0.94);
+  color: #e6e8ee;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.dsh-pet-restore:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/*
  * Dragging has NO animation of its own — she simply follows the pointer, and
  * the only thing that changes is the cursor (`.is-drag`).
  *
