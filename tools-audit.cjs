@@ -100,11 +100,16 @@ check('heart float ~34px at 350px widget', heartCqw > 8.5 && heartCqw < 11)
 
 console.log('--- price window (peak/valley) ---')
 /*
- * The rule is NOT "it is 00:30–08:30". Weekends and every day of a Chinese
- * statutory holiday bill at the valley rate all day — including a weekend that
- * is a 调休 makeup workday — which is why the mascot used to say 梁文峰 on
- * 2026-10-01, a national holiday. tools-test-schedule.cjs asserts the behaviour;
- * these checks only prove the shape of the rule is still in the source.
+ * The rule is PEAK-is-the-exception, per DeepSeek's 模型 & 价格 (注释 2):
+ *
+ *   「北京时间周一至周五（不含中国法定节假日）9:00 - 12:00、14:00 - 18:00 为高峰
+ *     时段；其余时段，包括周末及中国法定节假日全天均为空闲时段。」
+ *
+ * An earlier build had this INVERTED — it called 00:30–08:30 the valley window
+ * and everything else peak. That mislabelled every weekday evening, and on a
+ * weekend it made the countdown point at midnight instead of 09:00, nine hours
+ * short. tools-test-schedule.cjs asserts the behaviour; these checks only prove
+ * the shape of the rule is still in the source.
  */
 check('weekends are valley all day', /weekday === 0 \|\| weekday === 6/.test(host))
 check('a holiday range table exists', /ALL_DAY_VALLEY_RANGES = \[/.test(host))
@@ -112,8 +117,14 @@ check('all seven 2026 holiday blocks are listed', (host.match(/'2026-\d\d-\d\d',
 check('the 国庆 block is right', /'2026-10-01', '2026-10-07'/.test(host))
 check('the 春节 block is right', /'2026-02-15', '2026-02-23'/.test(host))
 check('Beijing offset is a fixed UTC+8', /BEIJING_OFFSET_MS = 8 \* 3600000/.test(host))
-check('the old pure-clock rule is gone', !/const valley = minutes >= VALLEY_FROM && minutes < VALLEY_UNTIL/.test(host))
-check('next switch tests only real boundaries', /boundaries = \[0, VALLEY_FROM, VALLEY_UNTIL\]/.test(host))
+check('the two peak windows are 09:00-12:00 and 14:00-18:00',
+  /PEAK_WINDOWS = \[[\s\S]{0,160}\[9 \* 60, 12 \* 60\][\s\S]{0,160}\[14 \* 60, 18 \* 60\]/.test(host))
+check('a weekday is peak ONLY inside a peak window',
+  /for \(const \[from, until\] of PEAK_WINDOWS\)[\s\S]{0,90}return false/.test(host))
+check('the inverted 00:30-08:30 rule is gone',
+  host.indexOf('VALLEY_FROM') === -1 && host.indexOf('VALLEY_UNTIL') === -1)
+check('the switch scan covers every peak edge',
+  /SWITCH_BOUNDARIES = \[0, 9 \* 60, 12 \* 60, 14 \* 60, 18 \* 60\]/.test(host))
 check('the scan horizon covers the longest block', /day <= 14/.test(host))
 check('status carries an absolute nextSwitchAt', /nextSwitchAt: market\.nextSwitchAt/.test(host))
 check('schedule hooks are exported for the offline test', /export \{ isAllDayValley, nextSwitchAt, stateAt as isValleyAt \}/.test(host))
@@ -121,7 +132,7 @@ check('schedule hooks are exported for the offline test', /export \{ isAllDayVal
 console.log('--- countdown ---')
 /*
  * The third slot counts hours:minutes:seconds down to the next flip, and hours
- * are NOT wrapped at 24 — the longest form is a holiday block's `246:31:07`.
+ * are NOT wrapped at 24 — the longest form is 春节's run, about `250:35:00`.
  * No day/天 form is allowed: that was an earlier design and it was rejected.
  */
 check('the third slot is the countdown', /el\('div', 'dsh-pet-count'/.test(client) && client.indexOf('dsh-pet-clock') === -1)

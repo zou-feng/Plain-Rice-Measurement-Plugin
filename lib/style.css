@@ -296,7 +296,7 @@
  * Countdown to the next peak/valley switch, bottom slot — hours:minutes:seconds.
  *
  * Hours are not wrapped at 24, so the longest form is a holiday block's
- * `246:31:07` (9 characters). At 2.55cqw that is ~69px, comfortably inside the
+ * `250:35:00` (9 characters). At 2.55cqw that is ~69px, comfortably inside the
  * ~126px glass.
  *
  * The COLOUR is not fixed here. The client tints this line by the window it is

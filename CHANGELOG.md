@@ -4,6 +4,51 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.3.0] - 2026-10-11
+
+### 修复
+
+- **峰谷规则整个搞反了**，这是 1.1.0 引入的错。原实现把「北京时间
+  00:30–08:30 为空闲时段、其余为高峰」当成了 DeepSeek 的规则，而官方
+  [模型 & 价格](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)
+  注释 2 写的是：
+
+  > 北京时间周一至周五（不含中国法定节假日）9:00 - 12:00、14:00 - 18:00
+  > 为高峰时段；其余时段，包括周末及中国法定节假日全天均为空闲时段。
+
+  **高峰才是例外，谷价是常态。** 后果有两类：
+
+  - **日常判定大面积错**：工作日的傍晚到次日早上（18:00–09:00）、以及午休
+    12:00–14:00，官方都是谷价，旧版一律报「梁文峰」；
+  - **倒计时在周末/假期整整短 9 小时**：周日晚上它数到「周一 00:00」，而真正的
+    切换点是「周一 09:00」。实测 2026-10-11 周日 17:52 时旧版显示 `06:07:40`，
+    正确值是 `15:06:41`。
+
+  现改为按官方口径：`PEAK_WINDOWS = [[9*60, 12*60], [14*60, 18*60]]`，
+  `stateAt` 只在命中这两个窗口时判峰价，其余（含周末、节假日全天）判谷价；
+  `SWITCH_BOUNDARIES` 相应改为四个窗口边界 + 零点。
+
+### 变更
+
+- **`GET /balance-pet/{status,config}` 的 `window` 字段改为 `peakWindows`**：
+  旧字段是 `{ fromMinute, untilMinute }`（谷价窗口），新字段是
+  `peakWindows: [{ fromMinute, untilMinute }, …]`（**高峰**窗口，分钟数：
+  540/720、840/1080）。语义从「谷价窗口」翻成「高峰窗口」，形状也从对象变成数组。
+  本插件自带的客户端不读这个字段，正常使用不受影响；外部若有消费者需要同步。
+- `ASSET_VERSION` 29 → **30**。
+- 开发工具与文档全面同步新规则：
+  - `tools-test-schedule.cjs` 的期望值全部重写（**21 条 → 28 条**），并新增
+    两条**专门复现旧错**的用例（`工作日 20:00 → 谷价（旧版误报峰价）`、
+    `周五 18:00 → 谷价，一路到周一 09:00`）；
+  - `tools-audit.cjs` 新增「两个高峰窗口正确」「工作日只在窗口内判峰」
+    「倒反的 00:30–08:30 规则已消失」「切换边界覆盖四个窗口边缘」四项断言；
+  - README / TUNING / 本文件按新规则重写。
+
+### 兼容性说明
+
+- 客户端（`lib/client.js`）**无需改动**：它只消费 `valley` / `label` /
+  `nextSwitchAt`，这些字段的含义没变，只是算出来的值对了。
+
 ## [1.2.0] - 2026-10-01
 
 ### 新增
@@ -89,6 +134,7 @@
 - 左键拖动、左键点击压缩回弹、扣款飘 `-¥X.XX`、到账冒 `❤`。
 - 四条静态路由：`/balance-pet/{status,config,sprite,style}`。
 
+[1.3.0]: https://github.com/zou-feng/Plain-Rice-Measurement-Plugin/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/zou-feng/Plain-Rice-Measurement-Plugin/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/zou-feng/Plain-Rice-Measurement-Plugin/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/zou-feng/Plain-Rice-Measurement-Plugin/releases/tag/v1.0.0

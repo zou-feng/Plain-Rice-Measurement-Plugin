@@ -2,10 +2,18 @@
  * Offline test for the peak/valley schedule and the countdown formatting.
  *
  * The pricing rule is the one piece of this plugin that is easy to get quietly
- * wrong — a wrong holiday table just makes the mascot say 梁文峰 on a national
- * holiday, with no error anywhere. So the rule is asserted here against known
- * dates from 《国务院办公厅关于 2026 年部分节假日安排的通知》 plus DeepSeek's
- * own schedule notices, and then fuzzed for the switch-boundary invariant.
+ * wrong — a wrong rule just makes the mascot say 梁文峰 at the wrong hour, with no
+ * error anywhere. So the rule is asserted here against DeepSeek's own published
+ * windows plus known dates from 《国务院办公厅关于 2026 年部分节假日安排的通知》,
+ * and then fuzzed for the switch-boundary invariant.
+ *
+ * The rule under test, verbatim from DeepSeek's 模型 & 价格 page (注释 2):
+ *
+ *   「北京时间周一至周五（不含中国法定节假日）9:00 - 12:00、14:00 - 18:00 为
+ *     高峰时段；其余时段，包括周末及中国法定节假日全天均为空闲时段。」
+ *
+ * PEAK is the exception. Several cases below exist purely to pin that down —
+ * they are the ones an earlier, inverted build got wrong.
  *
  * Run: node tools-test-schedule.cjs
  */
@@ -36,42 +44,54 @@ async function main() {
   console.log('--- known instants (Beijing) ---')
   /*
    * Every expectation is written as the wall-clock instant a *human* would read
-   * off a calendar, because that is where the bugs are: date rollover, the
-   * 00:00–00:30 peak notch, weekends, and holiday blocks.
+   * off a calendar, because that is where the bugs are: the two peak windows on
+   * an ordinary weekday, the lunch dead zone, the weekend bridge from Friday
+   * 18:00 to Monday 09:00, and holiday blocks.
    */
   const cases = [
-    // Everyday window.
-    ['正常工作日 09:00 → 峰价，收盘于次日 00:30', bj(2026, 6, 1, 9, 0), false, bj(2026, 6, 2, 0, 30)],
-    ['正常工作日 03:00 → 谷价，收盘于当日 08:30', bj(2026, 6, 1, 3, 0), true, bj(2026, 6, 1, 8, 30)],
-    ['正常工作日 00:10 → 峰价（00:30 前的空档）', bj(2026, 6, 1, 0, 10), false, bj(2026, 6, 1, 0, 30)],
-    ['正常工作日 23:00 → 峰价，跨零点不断档', bj(2026, 6, 1, 23, 0), false, bj(2026, 6, 2, 0, 30)],
-    ['边界 08:30 整点 → 已是峰价', bj(2026, 6, 1, 8, 30), false, bj(2026, 6, 2, 0, 30)],
-    ['边界 00:30 整点 → 已是谷价', bj(2026, 6, 1, 0, 30), true, bj(2026, 6, 1, 8, 30)],
+    // ── The ordinary weekday: peak only 09:00–12:00 and 14:00–18:00 ──────
+    ['工作日 10:00 → 峰价，收盘于当日 12:00', bj(2026, 6, 1, 10, 0), false, bj(2026, 6, 1, 12, 0)],
+    ['工作日 15:00 → 峰价，收盘于当日 18:00', bj(2026, 6, 1, 15, 0), false, bj(2026, 6, 1, 18, 0)],
+    ['边界 09:00 整点 → 已是峰价，收盘于 12:00', bj(2026, 6, 1, 9, 0), false, bj(2026, 6, 1, 12, 0)],
+    ['边界 12:00 整点 → 已是谷价（午休），收盘于 14:00', bj(2026, 6, 1, 12, 0), true, bj(2026, 6, 1, 14, 0)],
+    ['边界 14:00 整点 → 已是峰价，收盘于 18:00', bj(2026, 6, 1, 14, 0), false, bj(2026, 6, 1, 18, 0)],
+    ['边界 18:00 整点 → 已是谷价，收盘于次日 09:00', bj(2026, 6, 1, 18, 0), true, bj(2026, 6, 2, 9, 0)],
+    ['工作日 13:00 → 谷价（午休空档）', bj(2026, 6, 1, 13, 0), true, bj(2026, 6, 1, 14, 0)],
 
-    // Weekends are valley the whole day (since 2026-08-23).
-    ['周六 09:00 → 全天谷价，直到周一 00:00', bj(2026, 6, 6, 9, 0), true, bj(2026, 6, 8, 0, 0)],
-    ['周日 10:00 → 全天谷价，直到周一 00:00', bj(2026, 6, 7, 10, 0), true, bj(2026, 6, 8, 0, 0)],
+    /*
+     * These two are the regression guards for the inverted build: it called the
+     * whole evening peak and counted to midnight instead of to 09:00.
+     */
+    ['工作日 20:00 → 谷价（旧版误报峰价）', bj(2026, 6, 1, 20, 0), true, bj(2026, 6, 2, 9, 0)],
+    ['工作日 23:00 → 谷价，跨零点不断档，收盘于次日 09:00', bj(2026, 6, 1, 23, 0), true, bj(2026, 6, 2, 9, 0)],
+    ['工作日 03:00 → 谷价，收盘于当日 09:00', bj(2026, 6, 1, 3, 0), true, bj(2026, 6, 1, 9, 0)],
+    ['工作日 00:10 → 谷价（深夜无峰段）', bj(2026, 6, 1, 0, 10), true, bj(2026, 6, 1, 9, 0)],
+
+    // ── The weekend bridge: Friday 18:00 straight through to Monday 09:00 ──
+    ['周五 18:00 → 谷价，一路到周一 09:00（旧版误报峰价到周二 00:30）', bj(2026, 6, 5, 18, 0), true, bj(2026, 6, 8, 9, 0)],
+    ['周六 09:00 → 全天谷价，直到周一 09:00', bj(2026, 6, 6, 9, 0), true, bj(2026, 6, 8, 9, 0)],
+    ['周日 10:00 → 全天谷价，直到周一 09:00', bj(2026, 6, 7, 10, 0), true, bj(2026, 6, 8, 9, 0)],
 
     /*
      * 调休上班的周末也照谷价计费 (DeepSeek 2026-09-19 说明), which is the case a
-     * "weekend means idle" shortcut would get right and a "weekday list" would
-     * get wrong.
+     * "weekday means peak" shortcut would get wrong.
      */
-    ['9/20(周日，调休上班) → 仍全天谷价', bj(2026, 9, 20, 12, 0), true, bj(2026, 9, 21, 0, 0)],
-    ['10/10(周六，调休上班) → 仍全天谷价', bj(2026, 10, 10, 12, 0), true, bj(2026, 10, 12, 0, 0)],
+    ['9/20(周日，调休上班) → 仍全天谷价，直到 9/21 周一 09:00', bj(2026, 9, 20, 12, 0), true, bj(2026, 9, 21, 9, 0)],
+    ['10/10(周六，调休上班) → 仍全天谷价，直到 10/12 周一 09:00', bj(2026, 10, 10, 12, 0), true, bj(2026, 10, 12, 9, 0)],
 
-    // Statutory holiday blocks, including the Friday ones a weekday rule misses.
-    ['元旦 1/2(周五) → 谷价到 1/5 周一 00:00', bj(2026, 1, 2, 12, 0), true, bj(2026, 1, 5, 0, 0)],
-    ['春节 2/16(周一) → 谷价到 2/24 周二 00:00', bj(2026, 2, 16, 12, 0), true, bj(2026, 2, 24, 0, 0)],
-    ['清明 4/6(周一) → 谷价到 4/7 周二 00:00', bj(2026, 4, 6, 12, 0), true, bj(2026, 4, 7, 0, 0)],
-    ['劳动节 5/5(周二) → 谷价到 5/6 周三 00:00', bj(2026, 5, 5, 12, 0), true, bj(2026, 5, 6, 0, 0)],
-    ['端午 6/19(周五) → 谷价到 6/22 周一 00:00', bj(2026, 6, 19, 12, 0), true, bj(2026, 6, 22, 0, 0)],
-    ['中秋 9/25(周五) → 谷价到 9/28 周一 00:00', bj(2026, 9, 25, 12, 0), true, bj(2026, 9, 28, 0, 0)],
-    ['国庆 10/1(周四) 08:33 → 谷价到 10/8 周四 00:00', bj(2026, 10, 1, 8, 33), true, bj(2026, 10, 8, 0, 0)],
-    ['国庆最后一天 10/7 23:59 → 谷价，一分钟后就翻峰价', bj(2026, 10, 7, 23, 59), true, bj(2026, 10, 8, 0, 0)],
-    ['国庆后 10/8 00:10 → 峰价，00:30 转谷', bj(2026, 10, 8, 0, 10), false, bj(2026, 10, 8, 0, 30)],
-    ['国庆后 10/8 00:35 → 谷价，08:30 转峰', bj(2026, 10, 8, 0, 35), true, bj(2026, 10, 8, 8, 30)],
-    ['国庆后 10/8 09:00 → 峰价到次日 00:30', bj(2026, 10, 8, 9, 0), false, bj(2026, 10, 9, 0, 30)],
+    // ── Statutory holiday blocks ─────────────────────────────────────────
+    ['元旦 1/2(周五) → 谷价到 1/5 周一 09:00', bj(2026, 1, 2, 12, 0), true, bj(2026, 1, 5, 9, 0)],
+    ['春节 2/16(周一) → 谷价到 2/24 周二 09:00', bj(2026, 2, 16, 12, 0), true, bj(2026, 2, 24, 9, 0)],
+    ['清明 4/6(周一) → 谷价到 4/7 周二 09:00', bj(2026, 4, 6, 12, 0), true, bj(2026, 4, 7, 9, 0)],
+    ['劳动节 5/5(周二) → 谷价到 5/6 周三 09:00', bj(2026, 5, 5, 12, 0), true, bj(2026, 5, 6, 9, 0)],
+    ['端午 6/19(周五) → 谷价到 6/22 周一 09:00', bj(2026, 6, 19, 12, 0), true, bj(2026, 6, 22, 9, 0)],
+    ['中秋 9/25(周五) → 谷价到 9/28 周一 09:00', bj(2026, 9, 25, 12, 0), true, bj(2026, 9, 28, 9, 0)],
+    ['国庆 10/1(周四) 08:33 → 谷价到 10/8 周四 09:00', bj(2026, 10, 1, 8, 33), true, bj(2026, 10, 8, 9, 0)],
+    ['国庆最后一天 10/7 23:59 → 谷价，跨零点仍谷价', bj(2026, 10, 7, 23, 59), true, bj(2026, 10, 8, 9, 0)],
+    ['国庆后 10/8 08:59 → 谷价，一分钟后转峰', bj(2026, 10, 8, 8, 59), true, bj(2026, 10, 8, 9, 0)],
+    ['国庆后 10/8 09:00 → 峰价到 12:00', bj(2026, 10, 8, 9, 0), false, bj(2026, 10, 8, 12, 0)],
+    ['国庆后 10/8 12:30 → 谷价（午休）到 14:00', bj(2026, 10, 8, 12, 30), true, bj(2026, 10, 8, 14, 0)],
+    ['国庆后 10/8 18:30 → 谷价，到次日 09:00', bj(2026, 10, 8, 18, 30), true, bj(2026, 10, 9, 9, 0)],
   ]
 
   for (const [label, at, valley, next] of cases) {
@@ -102,6 +122,7 @@ async function main() {
   const to = bj(2027, 1, 1, 0, 0)
   let bad = 0
   let worstYear = 0
+  let longest = 0
   for (let i = 0; i < 4000; i += 1) {
     const at = from + Math.floor(rand() * (to - from))
     const current = isValleyAt(at)
@@ -110,24 +131,30 @@ async function main() {
     if (next <= at) { bad += 1; continue }
     if (isValleyAt(next - 1) !== current) { bad += 1; continue }
     if (isValleyAt(next) === current) { bad += 1; continue }
-    // A switch can never be more than a spring-festival block away.
+    // The longest valley run is 春节 plus the weekend either side of it:
+    // Friday 18:00 → the following Tuesday 09:00, a shade over 10.5 days.
     if (next - at > 11 * 86400000) worstYear += 1
+    if (next - at > longest) longest = next - at
   }
   check('4000 random instants in 2026 all switch correctly', bad === 0, bad === 0 ? undefined : `${bad} bad`)
   check('no switch is further than 11 days out', worstYear === 0, worstYear === 0 ? undefined : `${worstYear} outliers`)
+  console.log(`  longest gap seen: ${(longest / 86400000).toFixed(2)} days`)
 
   /*
-   * How long the current run of valley actually is, printed as a sanity check on
-   * the holiday table as a whole.
+   * Which Beijing dates bill at the idle rate from midnight to midnight. Under
+   * the correct rule that is exactly the weekends plus the statutory holiday
+   * blocks — every ordinary weekday still has its two peak windows in it.
    */
   console.log('')
-  console.log('--- 2026 valley days (whole-day, from the holiday/weekend rule) ---')
+  console.log('--- 2026 whole-day valley dates (weekends + holiday blocks) ---')
   const valleyDays = []
   for (let day = 0; day < 365; day += 1) {
-    const noon = bj(2026, 1, 1, 12, 0) + day * 86400000
-    const date = new Date(noon + OFFSET)
-    const midnight = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) - OFFSET
-    if (isValleyAt(midnight) && isValleyAt(midnight + 86399000)) valleyDays.push(stamp(midnight).slice(0, 10))
+    const midnight = bj(2026, 1, 1, 0, 0) + day * 86400000
+    let allValley = true
+    for (let m = 0; m < 1440; m += 10) {
+      if (!isValleyAt(midnight + m * 60000)) { allValley = false; break }
+    }
+    if (allValley) valleyDays.push(stamp(midnight).slice(0, 10))
   }
   console.log(`  ${valleyDays.length} whole-day valley dates in 2026`)
   console.log(`  ${valleyDays.join(' ')}`)
